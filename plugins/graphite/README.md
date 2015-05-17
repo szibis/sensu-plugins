@@ -24,7 +24,6 @@ python graphite.py -h
 usage: graphite.py [-h] -t TARGET -e ENDPOINT -i INTERVAL -m METHOD -w WARNING
                    -c CRITICAL
 
-```
 optional arguments:
   -h, --help            show this help message and exit
   -t TARGET, --target TARGET
