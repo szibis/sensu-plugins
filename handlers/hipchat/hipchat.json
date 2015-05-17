@@ -1,0 +1,14 @@
+{
+    "hipchat": {
+        "apikey": "<hipchat api key>",
+        "apiversion": "v1",
+        "from": "SensuAlerts",
+        "room": "sensu",
+        "s3_key": "<you s3 api key>",
+        "s3_secret": "<your s3 secret for key>",
+        "s3_bucket_region": "<s3 bucket region>",
+        "graphite_endpoint_private": "http://graphite.local",
+        "graphite_endpoint_public": "https://graphite.example.com",
+        "uchiwa_endpoint_public": "https://uchiwa.example.com"
+    }
+}

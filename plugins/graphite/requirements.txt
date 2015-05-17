@@ -1,0 +1,4 @@
+sensu-plugin
+simplejson
+numpy
+backoff
