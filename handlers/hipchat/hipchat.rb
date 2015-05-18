@@ -50,6 +50,10 @@ class HipChatNotif < Sensu::Handler
     @event['check']['command'].split("-c ")[1].split(" ")[0]
   end
 
+  def get_window
+    @event['check']['command'].split("-i ")[1].split(" ")[0]
+  end
+
   def get_method
     @event['check']['command'].split("-m ")[1].split(" ")[0]
   end
@@ -104,26 +108,26 @@ class HipChatNotif < Sensu::Handler
   end
 
   def minimal_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public)
-      return "<table><tr><td><b>#{alert_level.upcase}</b> [#{event_name}] :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}</td></tr></table>"
+      return "<table><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}</td></tr></table>"
   end
 
   def normal_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url)
-     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> [#{event_name}] :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}</td></tr></table>"
+     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}</td></tr></table>"
   end
 
   def full_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url)
-     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> [#{event_name}] :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: #{parse_alert_values(hipchat_mode)} :: [o: #{@event['occurrences']}, i: #{@event['check']['interval']}, r: #{@event['check']['refresh']} m: #{get_method}] :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}</td></tr></table>"
+     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: [o: #{@event['occurrences']}, i: #{@event['check']['interval']}, r: #{@event['check']['refresh']} m: #{get_method}] :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}</td></tr></table>"
   end
 
   def prepare_img_url(graphite_url_public)
-      return "#{graphite_url_public}/render?target=#{get_target}&format=png&width=700&height=350&from=-15minutes&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=2&hideLegend=False&drawNullAsZero=true&fontSize=8&areaMode=all&target=aliasSub(constantLine(#{get_warning}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical}),'^.*',%20'Critical')"
+      return "#{graphite_url_public}/render?target=#{get_target}&format=png&width=900&height=400&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=2&hideLegend=False&drawNullAsZero=true&fontSize=8&areaMode=all&target=aliasSub(constantLine(#{get_warning}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical}),'^.*',%20'Critical')"
   end
 
   def get_png(graphite_url_private)
        body =
       begin
         # prepare graphite private api url with no auth to render image
-        uri_prep = "#{graphite_url_private}/render?target=#{get_target}&format=png&width=300&height=150&from=-15minutes&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=1&hideLegend=true&drawNullAsZero=true&target=aliasSub(constantLine(#{get_warning}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical}),'^.*',%20'Critical')&fontSize=8&areaMode=all"
+        uri_prep = "#{graphite_url_private}/render?target=#{get_target}&format=png&width=400&height=200&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=1&hideLegend=true&drawNullAsZero=true&target=aliasSub(constantLine(#{get_warning}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical}),'^.*',%20'Critical')&fontSize=8&areaMode=all"
         uri = URI(uri_prep)
         res = Net::HTTP.get_response(uri)
         res.body
@@ -141,10 +145,6 @@ class HipChatNotif < Sensu::Handler
                msg = "#{minimal_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public)}"
       end
       return msg
-  end
-
-  def event_name
-    @event['client']['name'] + ' / ' + @event['check']['name']
   end
 
   def handle
