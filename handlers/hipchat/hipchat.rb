@@ -195,8 +195,10 @@ class HipChatNotif < Sensu::Handler
                   # send one message in html format contains images to all types of alert
                 if @event['action'].eql?('resolve')
                   hipchatmsg[room].send(from, msg_mode(hipchat_mode, 'resolved', graphite_url_public, s3_public_url, uchiwa_url_public, message), color: 'green')
+                  puts "hipchat -- sent resolved for #{@event['client']['name']} / #{@event['check']['name']} to #{room}"
                 else
                   hipchatmsg[room].send(from, msg_mode(hipchat_mode, @event['check']['status'] == 1 ? 'warning' : 'critical', graphite_url_public, s3_public_url, uchiwa_url_public, message), color: @event['check']['status'] == 1 ? 'yellow' : 'red', notify: true)
+                  puts "hipchat -- sent #{@event['check']['status'] == 1 ? 'warning' : 'critical'} for #{@event['client']['name']} / #{@event['check']['name']} to #{room}"
                 end
               end
             rescue Timeout::Error
