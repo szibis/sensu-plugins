@@ -75,7 +75,7 @@ class HipChatNotif < Sensu::Handler
         codes = Array[]
         if not @event['check']['status'] == 0
            @event['check']['output'].split(",").each do |item|
-              codes << item.split("(")[1].delete('\n').delete(')').split(" ")[0]
+              codes << item.split(" (")[1].delete('\n').delete(')').split(" ")[0]
            end
         else
               codes << 'R'
@@ -87,7 +87,9 @@ class HipChatNotif < Sensu::Handler
         values = Array[]
         if not @event['check']['status'] == 0
            @event['check']['output'].split(",").each do |item|
-               values << item.split(")")[1].delete('\n').delete(" ").delete(')')
+               if item
+                  values << item.split(" ").last.delete('\n')
+               end
            end
         else
                values << 'OK'
