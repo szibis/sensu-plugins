@@ -1,0 +1,10 @@
+{
+    "mailer": {
+        "admin_gui": "",
+        "mail_from": "",
+        "mail_to": "",
+        "smtp_address": "localhost",
+        "smtp_domain": "local",
+        "smtp_port": "25"
+    }
+}
