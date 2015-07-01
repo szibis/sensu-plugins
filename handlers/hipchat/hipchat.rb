@@ -104,11 +104,11 @@ class HipChatNotif < Sensu::Handler
   end
 
   def img_include(s3_public_url, graphite_url_public)
-     return "<a href='#{prepare_img_url(graphite_url_public)}'><img src='#{s3_public_url}' alt='#{s3_public_url}'></a>"
+     return "<a href=\"#{prepare_img_url(graphite_url_public)}\"><img src=\"#{s3_public_url}\" alt=\"#{s3_public_url}\"></a>"
   end
 
   def link_footer(uchiwa_url_public, graphite_url_public)
-      return "<b><a href='#{uchiwa_alert_url(uchiwa_url_public)}'>Uchiwa </a><a href='#{prepare_img_url(graphite_url_public)}'>Graphite</a></b>"
+      return "<b><a href=\"#{uchiwa_alert_url(uchiwa_url_public)}\">Uchiwa </a><a href=\"#{prepare_img_url(graphite_url_public)}\">Graphite</a></b>"
   end
 
   def minimal_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public)
