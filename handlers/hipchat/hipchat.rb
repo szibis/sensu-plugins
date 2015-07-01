@@ -43,11 +43,11 @@ class HipChatNotif < Sensu::Handler
   end
 
   def get_warning
-    @event['check']['command'].split("-w ")[1].split(" ")[0]
+    @event['check']['command'].split("-w ")[1].split('"')[1].delete('"')
   end
 
   def get_critical
-    @event['check']['command'].split("-c ")[1].split(" ")[0]
+    @event['check']['command'].split("-c ")[1].split('"')[1].delete('"')
   end
 
   def get_window
@@ -74,9 +74,11 @@ class HipChatNotif < Sensu::Handler
   def parse_alert_codes(hipchat_mode)
         codes = Array[]
         if not @event['check']['status'] == 0
-           @event['check']['output'].split(",").each do |item|
-              codes << item.split(" (")[1].delete('\n').delete(')').split(" ")[0]
-           end
+        @event['check']['output'].split(' ').each do |item|
+                 if item =~ /^\(\w\)$/
+                    codes << item.delete(')').delete('(')
+                 end
+             end
         else
               codes << 'R'
         end
@@ -86,9 +88,9 @@ class HipChatNotif < Sensu::Handler
   def parse_alert_values(hipchat_mode)
         values = Array[]
         if not @event['check']['status'] == 0
-           @event['check']['output'].split(",").each do |item|
-               if item
-                  values << item.split(" ").last.delete('\n')
+           @event['check']['output'].split(' ').each do |item|
+               if item =~ /^(\d.*)$|^(\-\d.*)$/
+                   values << item.delete(',')
                end
            end
         else
