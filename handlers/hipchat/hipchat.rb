@@ -124,14 +124,14 @@ class HipChatNotif < Sensu::Handler
   end
 
   def prepare_img_url(graphite_url_public)
-      return "#{graphite_url_public}/render?target=#{get_target}&format=png&width=900&height=400&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=2&hideLegend=False&drawNullAsZero=true&fontSize=8&areaMode=all&target=aliasSub(constantLine(#{get_warning}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical}),'^.*',%20'Critical')"
+      return "#{graphite_url_public}/render?target=#{get_target}&format=png&width=900&height=400&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=2&hideLegend=False&drawNullAsZero=False&fontSize=8&areaMode=all&target=aliasSub(constantLine(#{get_warning}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical}),'^.*',%20'Critical')"
   end
 
   def get_png(graphite_url_private)
        body =
       begin
         # prepare graphite private api url with no auth to render image
-        uri_prep = "#{graphite_url_private}/render?target=#{get_target}&format=png&width=400&height=200&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=1&hideLegend=true&drawNullAsZero=true&target=aliasSub(constantLine(#{get_warning}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical}),'^.*',%20'Critical')&fontSize=8&areaMode=all"
+        uri_prep = "#{graphite_url_private}/render?target=#{get_target}&format=png&width=400&height=200&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=1&hideLegend=true&drawNullAsZero=False&target=aliasSub(constantLine(#{get_warning}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical}),'^.*',%20'Critical')&fontSize=8&areaMode=all"
         uri = URI(uri_prep)
         res = Net::HTTP.get_response(uri)
         res.body
