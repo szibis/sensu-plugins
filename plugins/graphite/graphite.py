@@ -57,12 +57,12 @@ class GraphiteCheck(SensuPluginCheck):
       type=str,
       help="Critical level with use ==, =>, =<, <, >, != example: '>= 11' or just 11"
     )
-#    self.parser.add_argument(
-#      '-n',
-#      '--normal',
-#      required=False,
-#      help="Normal level"
-#    )
+    self.parser.add_argument(
+      '-n',
+      '--nodata',
+      required=False,
+      help="Ignore no data - result OK if no data"
+    )
 
   class Methods(object):
      def average(self, datapoints):
@@ -164,10 +164,16 @@ class GraphiteCheck(SensuPluginCheck):
     try:
        response = self.get_graphite_data()
     except:
-       self.unknown("No Data or Bad metric")
+       if self.options.nodata:
+          self.ok(self.options.target + " OK")
+       else:
+          self.unknown("No Data or Bad metric")
     targets = self.get_datapoints(response)
     if not targets:
-       self.unknown("No data or Bad metric")
+       if self.options.nodata:
+          self.ok("OK")
+       else:
+          self.unknown("No data or Bad metric")
     output = []
     levels = []
     for target in targets:
@@ -219,6 +225,8 @@ class GraphiteCheck(SensuPluginCheck):
       self.warning(message)
     elif (2 in levels):
       self.critical(message)
+    elif self.options.nodata:
+      self.ok(self.options.target + " OK")
     else:
       self.unknown(message)
 
