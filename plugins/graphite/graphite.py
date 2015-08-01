@@ -202,7 +202,8 @@ class GraphiteCheck(SensuPluginCheck):
                addvalue = self.valid_last(targets.get(target), int(addvalue))
             method_value = method(targets_vars, int(addvalue))
          else:
-            method_value = method(targets.get(target))
+            if targets.get(target):
+                method_value = method(targets.get(target))
          wrule = self.parse_rules(self.options.warning)
          crule = self.parse_rules(self.options.critical)
          compare_warning = self.apply_rules("warning", wrule['operator'], wrule['value'], method_value)
