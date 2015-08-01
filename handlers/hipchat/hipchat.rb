@@ -111,16 +111,34 @@ class HipChatNotif < Sensu::Handler
       return "<b><a href=\"#{uchiwa_alert_url(uchiwa_url_public)}\">Uchiwa </a><a href=\"#{prepare_img_url(graphite_url_public)}\">Graphite</a></b>"
   end
 
-  def minimal_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public)
-      return "<table><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}</td></tr></table>"
+  def playlink(playbook)
+      if playbook
+        begin
+          uri = URI.parse(playbook)
+          if %w( http https ).include?(uri.scheme)
+             playlink = " :: <a href='#{playbook}'>Playbook</a>"
+          else
+             playlink = " :: #{playbook}"
+          end
+        rescue
+          playlink = " :: #{playbook}"
+        end
+      else
+        playlink = ""
+      end
+      return playlink
   end
 
-  def normal_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url)
-     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}</td></tr></table>"
+  def minimal_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, playbook)
+      return "<table><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}#{playbook}</td></tr></table>"
   end
 
-  def full_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url)
-     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: [o: #{@event['occurrences']}, i: #{@event['check']['interval']}, r: #{@event['check']['refresh']} m: #{get_method}] :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}</td></tr></table>"
+  def normal_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, playbook)
+     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}#{playbook}</td></tr></table>"
+  end
+
+  def full_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, playbook)
+     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: [o: #{@event['occurrences']}, i: #{@event['check']['interval']}, r: #{@event['check']['refresh']} m: #{get_method}] :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}#{playbook}</td></tr></table>"
   end
 
   def prepare_img_url(graphite_url_public)
@@ -140,13 +158,13 @@ class HipChatNotif < Sensu::Handler
       end
   end
 
-  def msg_mode(hipchat_mode, level, graphite_url_public, s3_public_url, uchiwa_url_public, message)
+  def msg_mode(hipchat_mode, level, graphite_url_public, s3_public_url, uchiwa_url_public, gmessage, playbook)
       if hipchat_mode.eql?('full')
-               msg = "#{full_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url)}"
+               msg = "#{full_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, playbook)}"
       elsif hipchat_mode.eql?('normal')
-               msg = "#{normal_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url)}"
+               msg = "#{normal_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, playbook)}"
       elsif hipchat_mode.eql?('minimal')
-               msg = "#{minimal_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public)}"
+               msg = "#{minimal_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public, playbook)}"
       end
       return msg
   end
@@ -167,9 +185,10 @@ class HipChatNotif < Sensu::Handler
     graphite_url_private = settings[json_config]['graphite_endpoint_private']
     graphite_url_public = settings[json_config]['graphite_endpoint_public']
     uchiwa_url_public = settings[json_config]['uchiwa_endpoint_public']
+    playbook = @event['check']['playbook']
 
-    #message = @event['check']['notification'] || @event['check']['output']
-    message = @event['check']['output']
+    message = @event['check']['notification'] || @event['check']['output']
+    gmessage = @event['check']['output']
 
     # If the playbook attribute exists and is a URL, "[<a href='url'>playbook</a>]" will be output.
     # To control the link name, set the playbook value to the HTML output you would like.
@@ -198,10 +217,11 @@ class HipChatNotif < Sensu::Handler
                   s3_public_url = obj.public_url
                   # send one message in html format contains images to all types of alert
                 if @event['action'].eql?('resolve')
-                  hipchatmsg[room].send(from, msg_mode(hipchat_mode, 'resolved', graphite_url_public, s3_public_url, uchiwa_url_public, message), color: 'green')
+                  hipchatmsg[room].send(from, msg_mode(hipchat_mode, 'resolved', graphite_url_public, s3_public_url, uchiwa_url_public, gmessage), color: 'green')
                   puts "hipchat -- sent resolved for #{@event['client']['name']} / #{@event['check']['name']} to #{room}"
                 else
-                  hipchatmsg[room].send(from, msg_mode(hipchat_mode, @event['check']['status'] == 1 ? 'warning' : 'critical', graphite_url_public, s3_public_url, uchiwa_url_public, message), color: @event['check']['status'] == 1 ? 'yellow' : 'red', notify: true)
+                  playbooklink = playlink(playbook)
+                  hipchatmsg[room].send(from, msg_mode(hipchat_mode, @event['check']['status'] == 1 ? 'warning' : 'critical', graphite_url_public, s3_public_url, uchiwa_url_public, gmessage, playbooklink), color: @event['check']['status'] == 1 ? 'yellow' : 'red', notify: true)
                   puts "hipchat -- sent #{@event['check']['status'] == 1 ? 'warning' : 'critical'} for #{@event['client']['name']} / #{@event['check']['name']} to #{room}"
                 end
               end
