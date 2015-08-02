@@ -181,6 +181,7 @@ class HipChatNotif < Sensu::Handler
     from = @event['check']['hipchat_msgname'] || settings[json_config]['from'] || 'Sensu'
     s3_access_key_id = settings[json_config]['s3_key']
     s3_secret_access_key = settings[json_config]['s3_secret']
+    s3_bucket = settings[json_config]['s3_bucket']
     s3_bucket_region = settings[json_config]['s3_bucket_region']
     graphite_url_private = settings[json_config]['graphite_endpoint_private']
     graphite_url_public = settings[json_config]['graphite_endpoint_public']
@@ -212,7 +213,7 @@ class HipChatNotif < Sensu::Handler
                   # add s3 images upload based on graphite rendered png
                   current_time = Time.now
                   s3 = Aws::S3::Resource.new(credentials: Aws::Credentials.new(s3_access_key_id, s3_secret_access_key), region: s3_bucket_region)
-                  obj = s3.bucket('sensu-hipchat-images').object(current_time.strftime("%d-%m-%Y") + "/" + current_time.strftime("%H/%M") + "/" + SecureRandom.hex(25) + '.png')
+                  obj = s3.bucket(s3_bucket).object(current_time.strftime("%d-%m-%Y") + "/" + current_time.strftime("%H/%M") + "/" + SecureRandom.hex(25) + '.png')
                   obj.put(body:get_png(graphite_url_private), acl:'public-read', storage_class:'REDUCED_REDUNDANCY')
                   s3_public_url = obj.public_url
                   # send one message in html format contains images to all types of alert

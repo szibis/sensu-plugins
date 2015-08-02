@@ -6,6 +6,7 @@
         "room": "sensu",
         "s3_key": "<you s3 api key>",
         "s3_secret": "<your s3 secret for key>",
+        "s3_bucket": "<your s3 bucket name>",
         "s3_bucket_region": "<s3 bucket region>",
         "graphite_endpoint_private": "http://graphite.local",
         "graphite_endpoint_public": "https://graphite.example.com",
