@@ -210,18 +210,18 @@ class HipChatNotif < Sensu::Handler
        for room in rooms
             begin
               timeout(3) do
-                  # add s3 images upload based on graphite rendered png
-                  current_time = Time.now
-                  s3 = Aws::S3::Resource.new(credentials: Aws::Credentials.new(s3_access_key_id, s3_secret_access_key), region: s3_bucket_region)
-                  obj = s3.bucket(s3_bucket).object(current_time.strftime("%d-%m-%Y") + "/" + current_time.strftime("%H/%M") + "/" + SecureRandom.hex(25) + '.png')
-                  obj.put(body:get_png(graphite_url_private), acl:'public-read', storage_class:'REDUCED_REDUNDANCY')
-                  s3_public_url = obj.public_url
-                  # send one message in html format contains images to all types of alert
+                # add s3 images upload based on graphite rendered png
+                current_time = Time.now
+                s3 = Aws::S3::Resource.new(credentials: Aws::Credentials.new(s3_access_key_id, s3_secret_access_key), region: s3_bucket_region)
+                obj = s3.bucket(s3_bucket).object(current_time.strftime("%d-%m-%Y") + "/" + current_time.strftime("%H/%M") + "/" + SecureRandom.hex(25) + '.png')
+                obj.put(body:get_png(graphite_url_private), acl:'public-read', storage_class:'REDUCED_REDUNDANCY')
+                s3_public_url = obj.public_url
+                # send one message in html format contains images to all types of alert
+                playbooklink = playlink(playbook)
                 if @event['action'].eql?('resolve')
-                  hipchatmsg[room].send(from, msg_mode(hipchat_mode, 'resolved', graphite_url_public, s3_public_url, uchiwa_url_public, gmessage), color: 'green')
+                  hipchatmsg[room].send(from, msg_mode(hipchat_mode, 'resolved', graphite_url_public, s3_public_url, uchiwa_url_public, gmessage, playbooklink), color: 'green')
                   puts "hipchat -- sent resolved for #{@event['client']['name']} / #{@event['check']['name']} to #{room}"
                 else
-                  playbooklink = playlink(playbook)
                   hipchatmsg[room].send(from, msg_mode(hipchat_mode, @event['check']['status'] == 1 ? 'warning' : 'critical', graphite_url_public, s3_public_url, uchiwa_url_public, gmessage, playbooklink), color: @event['check']['status'] == 1 ? 'yellow' : 'red', notify: true)
                   puts "hipchat -- sent #{@event['check']['status'] == 1 ? 'warning' : 'critical'} for #{@event['client']['name']} / #{@event['check']['name']} to #{room}"
                 end
