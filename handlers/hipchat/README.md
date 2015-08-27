@@ -18,4 +18,4 @@ Added features:
 * Info about alert duration
 * Info about each target alert level, alert code
 * Info about current target and warning/critical levels
-
+* Playbook variable support in advance mode for graphite (add your procedures or wiki links)
