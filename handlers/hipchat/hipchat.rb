@@ -58,6 +58,22 @@ class HipChatNotif < Sensu::Handler
     @event['check']['command'].split("-m ")[1].split(" ")[0]
   end
 
+  def get_warning_parsed
+   if get_warning.match(" ") then
+      return get_warning.split(" ")[1]
+    else
+      return get_warning
+    end
+  end
+
+  def get_critical_parsed
+    if get_critical.match(" ") then
+       return get_critical.split(" ")[1]
+    else
+       return get_critical
+    end
+  end
+
   def alert_duration
         seconds = @event['occurrences'] * @event['check']['interval']
         Time.at(seconds).utc.strftime("%H:%M:%S")
@@ -142,14 +158,14 @@ class HipChatNotif < Sensu::Handler
   end
 
   def prepare_img_url(graphite_url_public)
-      return "#{graphite_url_public}/render?target=#{get_target}&format=png&width=900&height=400&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=2&hideLegend=False&drawNullAsZero=False&fontSize=8&areaMode=all&target=aliasSub(constantLine(#{get_warning}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical}),'^.*',%20'Critical')"
+      return "#{graphite_url_public}/render?target=#{get_target}&format=png&width=900&height=400&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=2&hideLegend=False&drawNullAsZero=False&fontSize=8&areaMode=all&target=aliasSub(constantLine(#{get_warning_parsed}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical_parsed}),'^.*',%20'Critical')"
   end
 
   def get_png(graphite_url_private)
        body =
       begin
         # prepare graphite private api url with no auth to render image
-        uri_prep = "#{graphite_url_private}/render?target=#{get_target}&format=png&width=400&height=200&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=1&hideLegend=true&drawNullAsZero=False&target=aliasSub(constantLine(#{get_warning}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical}),'^.*',%20'Critical')&fontSize=8&areaMode=all"
+        uri_prep = "#{graphite_url_private}/render?target=#{get_target}&format=png&width=400&height=200&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=1&hideLegend=true&drawNullAsZero=False&target=aliasSub(constantLine(#{get_warning_parsed}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical_parsed}),'^.*',%20'Critical')&fontSize=8&areaMode=all"
         uri = URI(uri_prep)
         res = Net::HTTP.get_response(uri)
         res.body
