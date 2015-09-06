@@ -18,6 +18,10 @@ require 'rubygems' if RUBY_VERSION < '1.9.0'
 require 'sensu-handler'
 require 'mail'
 require 'timeout'
+require 'net/http'
+require 'securerandom'
+require 'aws-sdk'
+require 'erubis'
 
 # patch to fix Exim delivery_method: https://github.com/mikel/mail/pull/546
 # #YELLOW
@@ -45,6 +49,42 @@ class Mailer < Sensu::Handler
 
   def action_to_string
     @event['action'].eql?('resolve') ? 'RESOLVED' : 'ALERT'
+  end
+
+  def get_target
+    @event['check']['command'].split('"')[1].tr('"', "").delete(' ')
+  end
+
+  def get_warning
+    @event['check']['command'].split("-w ")[1].split('"')[1].delete('"')
+  end
+
+  def get_critical
+    @event['check']['command'].split("-c ")[1].split('"')[1].delete('"')
+  end
+
+  def get_window
+    @event['check']['command'].split("-i ")[1].split(" ")[0]
+  end
+
+  def get_method
+    @event['check']['command'].split("-m ")[1].split(" ")[0]
+  end
+
+  def get_warning_parsed
+   if get_warning.match(" ") then
+      return get_warning.split(" ")[1]
+    else
+      return get_warning
+    end
+  end
+
+  def get_critical_parsed
+    if get_critical.match(" ") then
+       return get_critical.split(" ")[1]
+    else
+       return get_critical
+    end
   end
 
   def alert_duration
@@ -82,6 +122,50 @@ class Mailer < Sensu::Handler
     mail_to
   end
 
+  def get_png(graphite_url_private)
+       body =
+      begin
+        # prepare graphite private api url with no auth to render image
+        uri_prep = "#{graphite_url_private}/render?target=#{get_target}&format=png&width=400&height=200&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=1&hideLegend=true&drawNullAsZero=False&target=aliasSub(constantLine(#{get_warning_parsed}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical_parsed}),'^.*',%20'Critical')&fontSize=8&areaMode=all"
+        uri = URI(uri_prep)
+        res = Net::HTTP.get_response(uri)
+        res.body
+      rescue => e
+        puts "Failed to query graphite: #{e.inspect}"
+      end
+  end
+
+  def uchiwa_alert_url(uchiwa_url_public)
+     return "#{uchiwa_url_public}/#/client/Sensu/#{@event['client']['name']}?check=#{@event['check']['name']}"
+  end
+
+  def prepare_img_url(graphite_url_public)
+      return "#{graphite_url_public}/render?target=#{get_target}&format=png&width=900&height=400&from=-#{get_window}&bgcolor=ffffff&fgcolor=000000&areaAlpha=0.1&lineWidth=2&hideLegend=False&drawNullAsZero=False&fontSize=8&areaMode=all&target=aliasSub(constantLine(#{get_warning_parsed}),'^.*',%20'Warning')&target=aliasSub(constantLine(#{get_critical_parsed}),'^.*',%20'Critical')"
+  end
+
+  def img_include(s3_public_url, graphite_url_public)
+     return "<a href=\"#{prepare_img_url(graphite_url_public)}\"><img src=\"#{s3_public_url}\" alt=\"#{s3_public_url}\"></a>"
+  end
+
+  def link_footer(uchiwa_url_public, graphite_url_public)
+      return "<b><a href=\"#{uchiwa_alert_url(uchiwa_url_public)}\">Uchiwa </a><a href=\"#{prepare_img_url(graphite_url_public)}\">Graphite</a></b>"
+  end
+
+  def s3_public_img
+    # add s3 images upload based on graphite rendered png
+    current_time = Time.now
+    s3 = Aws::S3::Resource.new(credentials: Aws::Credentials.new(s3_access_key_id, s3_secret_access_key), region: s3_bucket_region)
+    obj = s3.bucket('sensu-images').object(current_time.strftime("%d-%m-%Y") + "/" + current_time.strftime("%H/%M") + "/" + "mailer" + SecureRandom.hex(25) + '.png')
+    obj.put(body:get_png(graphite_url_private), acl:'public-read', storage_class:'REDUCED_REDUNDANCY')
+    s3_public_url = obj.public_url
+  end
+
+  def default_template
+    return "<h2><%=status%> for <%=name%></h2>
+            <p><%=imginclude%></p>
+            <p><b>Name: </b><%=name%><br /> <b>Warning/Critical Level:</b> <%=warning%> / <%=critical%><br /><b>Target: </b> <%=target%><br /> <b>AlertUI: </b><%=alertui%>&nbsp;<br /> <b>Source: </b><%=source%>&nbsp;<br /> <b>Timestamp: </b><%=timestamp%>&nbsp;<br /> <b>Occurrences: </b><%=occurrences%>&nbsp;<br /> <b>Duration: </b><%=duration%>&nbsp;<br /> <b>Check_output: </b><%=checkoutput%></p>"
+  end
+
   def handle
     json_config = config[:json_config] || 'mailer'
     admin_gui = settings[json_config]['admin_gui'] || 'http://localhost:8080/'
@@ -98,24 +182,72 @@ class Mailer < Sensu::Handler
     smtp_password = settings[json_config]['smtp_password'] || nil
     smtp_authentication = settings[json_config]['smtp_authentication'] || :plain
     smtp_enable_starttls_auto = settings[json_config]['smtp_enable_starttls_auto'] == 'false' ? false : true
+
+    s3_access_key_id = settings[json_config]['s3_key'] || nil
+    s3_secret_access_key = settings[json_config]['s3_secret'] || nil
+    s3_bucket = settings[json_config]['s3_bucket'] || nil
+    s3_bucket_region = settings[json_config]['s3_bucket_region'] || nil
+    graphite_url_private = settings[json_config]['graphite_endpoint_private'] || nil
+    graphite_url_public = settings[json_config]['graphite_endpoint_public'] || nil
+    uchiwa_url_public = settings[json_config]['uchiwa_endpoint_public'] || nil
+
     # try to redact passwords from output and command
     output = "#{@event['check']['output']}".gsub(/(-p|-P|--password)\s*\S+/, '\1 <password redacted>')
     command = "#{@event['check']['command']}".gsub(/(-p|-P|--password)\s*\S+/, '\1 <password redacted>')
-
     playbook = "Playbook:  #{@event['check']['playbook']}" if @event['check']['playbook']
-    body = <<-BODY.gsub(/^\s+/, '')
-            Name: #{@event['check']['name']}
-            Uchiwa: #{admin_alert_url(admin_gui)}
-            Host: #{@event['client']['name']}
-            Timestamp: #{Time.at(@event['check']['issued'])}
-            Address:  #{@event['client']['address']}
-            Status:  #{status_to_string}
-            Occurrences:  #{@event['occurrences']}
-            Duration: #{alert_duration}
-            Command:  #{command}
-            Check_output: #{output}
-            #{playbook}
-          BODY
+
+    # add s3 images upload based on graphite rendered png
+    current_time = Time.now
+    s3 = Aws::S3::Resource.new(credentials: Aws::Credentials.new(s3_access_key_id, s3_secret_access_key), region: s3_bucket_region)
+    obj = s3.bucket(s3_bucket).object(current_time.strftime("%d-%m-%Y") + "/" + current_time.strftime("%H/%M") + "/" + SecureRandom.hex(25) + '.png')
+    obj.put(body:get_png(graphite_url_private), acl:'public-read', storage_class:'REDUCED_REDUNDANCY')
+    s3_public_url = obj.public_url
+
+    # template values for ERB
+      erbvalues = { name:"#{@event['check']['name']}",
+                    alertui:"#{uchiwa_alert_url(uchiwa_url_public)}",
+                    source:"#{@event['client']['name']}",
+                    timestamp:"#{Time.at(@event['check']['issued'])}",
+                    address:"#{@event['client']['address']}",
+                    status:"#{status_to_string}",
+                    occurrences:"#{@event['occurrences']}",
+                    interval:"#{@event['check']['interval']}",
+                    duration:"#{alert_duration}",
+                    command:"#{command}",
+                    checkoutput:"#{output}",
+                    playbook:"#{playbook}",
+                    target:"#{get_target}",
+                    warning:"#{get_warning}",
+                    critical:"#{get_critical}",
+                    imgurl:"#{prepare_img_url(graphite_url_public)}",
+                    imginclude: "#{img_include(s3_public_url, graphite_url_public)}",
+                    linkfooter: "#{link_footer(uchiwa_url_public, graphite_url_public)}" }
+
+    if @event['check']['mail_mode'] == "plain"
+        content_type = 'text/plain; charset=UTF-8'
+        body = <<-BODY.gsub(/^\s+/, '')
+                Name: #{@event['check']['name']}
+                Uchiwa: #{admin_alert_url(admin_gui)}
+                Host: #{@event['client']['name']}
+                Timestamp: #{Time.at(@event['check']['issued'])}
+                Address:  #{@event['client']['address']}
+                Status:  #{status_to_string}
+                Occurrences:  #{@event['occurrences']}
+                Duration: #{alert_duration}
+                Command:  #{command}
+                Check_output: #{output}
+                #{playbook}
+             BODY
+    elsif @event['check']['mail_mode'] == "html"
+        if @event['check']['mail_body']
+           body = Erubis::Eruby.new(@event['check']['mail_body']).result(erbvalues)
+           content_type = 'text/html; charset=UTF-8'
+        else
+           body = Erubis::Eruby.new("#{default_template}").result(erbvalues)
+           content_type = 'text/html; charset=UTF-8'
+        end
+    end
+
     if @event['check']['notification'].nil?
       subject = "#{action_to_string} - #{short_name}: #{status_to_string}"
     else
@@ -150,6 +282,7 @@ class Mailer < Sensu::Handler
           from mail_from
           reply_to reply_to
           subject subject
+          content_type content_type
           body body
         end
 
