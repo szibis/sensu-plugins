@@ -99,13 +99,26 @@ class Mailer < Sensu::Handler
   def status_to_string
     case @event['check']['status']
     when 0
-      'OK'
+      return 'OK'
     when 1
-      'WARNING'
+      return 'WARNING'
     when 2
-      'CRITICAL'
+      return 'CRITICAL'
     else
-      'UNKNOWN'
+      return 'UNKNOWN'
+    end
+  end
+
+  def bgcolor
+   case @event['check']['status']
+    when 0
+      return '#E1F1E8'
+    when 1
+      return '#FEFEEE'
+    when 2
+      return '#F5E1E1'
+    else
+      return '#E5E5E5'
     end
   end
 
@@ -161,9 +174,11 @@ class Mailer < Sensu::Handler
   end
 
   def default_template
-    return "<h2><%=status%> for <%=name%></h2>
+    return "<html><body><table bgcolor=#{bgcolor}><tr><td>
+            <h2><%=status%> for <%=check['name']%></h2>
             <p><%=imginclude%></p>
-            <p><b>Name: </b><%=name%><br /> <b>Warning/Critical Level:</b> <%=warning%> / <%=critical%><br /><b>Target: </b> <%=target%><br /> <b>AlertUI: </b><%=alertui%>&nbsp;<br /> <b>Source: </b><%=source%>&nbsp;<br /> <b>Timestamp: </b><%=timestamp%>&nbsp;<br /> <b>Occurrences: </b><%=occurrences%>&nbsp;<br /> <b>Duration: </b><%=duration%>&nbsp;<br /> <b>Check_output: </b><%=checkoutput%></p>"
+            <p><b>Name: </b><%=check['name']%><br /> <b>Warning/Critical Level:</b> <%=warning%> / <%=critical%><br /><b>Target: </b> <%=target%><br /> <b>AlertUI: </b><%=alertui%>&nbsp;<br /> <b>Source: </b><%=check['source']%>&nbsp;<br /> <b>Timestamp: </b><%=time%>&nbsp;<br /> <b>Occurrences: </b><%=occurrences%>&nbsp;<br /> <b>Duration: </b><%=duration%>&nbsp;<br /> <b>Check_output: </b><%=nopasscheckout%></p>
+            </td></tr></table></body></html>"
   end
 
   def handle
@@ -203,25 +218,28 @@ class Mailer < Sensu::Handler
     obj.put(body:get_png(graphite_url_private), acl:'public-read', storage_class:'REDUCED_REDUNDANCY')
     s3_public_url = obj.public_url
 
-    # template values for ERB
-      erbvalues = { name:"#{@event['check']['name']}",
-                    alertui:"#{uchiwa_alert_url(uchiwa_url_public)}",
-                    source:"#{@event['client']['name']}",
-                    timestamp:"#{Time.at(@event['check']['issued'])}",
-                    address:"#{@event['client']['address']}",
-                    status:"#{status_to_string}",
-                    occurrences:"#{@event['occurrences']}",
-                    interval:"#{@event['check']['interval']}",
-                    duration:"#{alert_duration}",
-                    command:"#{command}",
-                    checkoutput:"#{output}",
-                    playbook:"#{playbook}",
-                    target:"#{get_target}",
-                    warning:"#{get_warning}",
-                    critical:"#{get_critical}",
-                    imgurl:"#{prepare_img_url(graphite_url_public)}",
-                    imginclude: "#{img_include(s3_public_url, graphite_url_public)}",
-                    linkfooter: "#{link_footer(uchiwa_url_public, graphite_url_public)}" }
+      erbvalues = { }
+    # template values for ERB based on event check data
+      erbvalues[:check] = @event['check']
+      erbvalues[:client] = @event['client']
+    # adding custom values
+      erbvalues[:id] = "#{@event['id']}" || nil
+      erbvalues[:occurrences] = "#{@event['occurrences']}" || nil
+      erbvalues[:action] = "#{@event['action']}" || nil
+      erbvalues[:alertui] = "#{uchiwa_alert_url(uchiwa_url_public)}" || nil
+      erbvalues[:time] = "#{Time.at(@event['check']['issued'])}" || nil
+      erbvalues[:status] = "#{status_to_string}" || nil
+      erbvalues[:duration] = "#{alert_duration}" || nil
+      erbvalues[:nopasscommand] = "#{command}" || nil
+      erbvalues[:nopasscheckout] = "#{output}" || nil
+      erbvalues[:playbook] = "#{playbook}" || nil
+      erbvalues[:target] = "#{get_target}" || nil
+      erbvalues[:warning] = "#{get_warning}" || nil
+      erbvalues[:critical] = "#{get_critical}" || nil
+      erbvalues[:imgurl] = "#{prepare_img_url(graphite_url_public)}" || nil
+      erbvalues[:imginclude] = "#{img_include(s3_public_url, graphite_url_public)}" || nil
+      erbvalues[:linkfooter] = "#{link_footer(uchiwa_url_public, graphite_url_public)}" || nil
+      erbvalues[:bgcolor] = "#{bgcolor}" || nil
 
     if @event['check']['mail_mode'] == "plain"
         content_type = 'text/plain; charset=UTF-8'
