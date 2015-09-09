@@ -174,10 +174,10 @@ class Mailer < Sensu::Handler
   end
 
   def default_template
-    return "<html><body><table bgcolor=#{bgcolor}><tr><td>
+    return "<html><body><table bgcolor=<%=bgcolor%>><tr><td>
             <h2><%=status%> for <%=check['name']%></h2>
             <p><%=imginclude%></p>
-            <p><b>Name: </b><%=check['name']%><br /> <b>Warning/Critical Level:</b> <%=warning%> / <%=critical%><br /><b>Target: </b> <%=target%><br /> <b>AlertUI: </b><%=alertui%>&nbsp;<br /> <b>Source: </b><%=check['source']%>&nbsp;<br /> <b>Timestamp: </b><%=time%>&nbsp;<br /> <b>Occurrences: </b><%=occurrences%>&nbsp;<br /> <b>Duration: </b><%=duration%>&nbsp;<br /> <b>Check_output: </b><%=nopasscheckout%></p>
+            <p><b>Name: </b><%=check['name']%><br /> <b>Warning/Critical Level:</b> <%=warning%> / <%=critical%><br /><b>Target: </b> <%=target%><br /> <b>AlertUI: </b><%=alertui%>&nbsp;<br /> <b>Source: </b><%=check['source']%>&nbsp;<br /> <b>Timestamp: </b><%=time%>&nbsp;<br /> <b>Duration: </b><%=duration%>&nbsp;<br /> <b>Check_output: </b><%=nopasscheckout%></p>
             </td></tr></table></body></html>"
   end
 
