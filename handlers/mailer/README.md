@@ -12,25 +12,27 @@ gem install mail erubis aws-sdk securerandom timeout http
 * some advance options based and only on python graphite plugin - https://github.com/szibis/sensu-plugins
 * body templates default or use per check template
   * use mail_body in check with your erubis template to everride default template
-  * use predefined template values to extend emails:
-    * name
-    * alertui
-    * source
-    * timestamp
-    * address
-    * status
-    * occurrences
-    * interval
-    * duration
-    * command
-    * checkoutput
-    * playbook
-    * target
-    * warning
-    * critical
-    * imgurl
-    * imginclude
-    * linkfooter
+  * use event hahshes to template values and extend emails - https://sensuapp.org/docs/0.20/api-events:
+      * check - hash from all values from event check section - example: check['name']
+      * client - hash from all values from event check section - example: client['address']
+  * adding more custom values to template:
+      * id - event id
+      * occurrences - number of event occurrences
+      * action - event action
+      * alertui - your uchiwa or any other alert ui for event
+      * time - time of this event
+      * status - string status of this event
+      * duration - alert duration
+      * nopasscommand - command with no passwords
+      * nopasscheckout - check output with no passwords
+      * playbook - playbook for your wiki, docs, tips&tricks, knowledge, info
+      * target - graphite tagrget source in this event
+      * warning - warning level for this even
+      * critical - critical level for this event
+      * imgurl - url from s3 for image in mail to use
+      * imginclude - full <a href....> section prepared to include
+      * linkfooter - link footer with graphite alert graph image and your ui alert link
+      * bgcolor - predefined bgcolours for resolved, warning, critical and no data
 * images in mail generated and stored on S3
 * link to uchiwa specific alert
 * link to graphite-web specific target with warning/critical thresholds
