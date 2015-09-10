@@ -17,6 +17,8 @@ gem install mail erubis aws-sdk securerandom timeout http
       * client - hash from all values from event check section - example: client['address']
   * adding more custom values to template:
       * id - event id
+      * check_name - check name with removed _ and/or .
+      * source_name - check name with removed _ and/or .
       * occurrences - number of event occurrences
       * action - event action
       * alertui - your uchiwa or any other alert ui for event
