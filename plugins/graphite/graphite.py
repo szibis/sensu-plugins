@@ -60,7 +60,7 @@ class GraphiteCheck(SensuPluginCheck):
     self.parser.add_argument(
       '-n',
       '--nodata',
-      required=False,
+      action='store_true',
       help="Ignore no data - result OK if no data"
     )
 
@@ -76,6 +76,11 @@ class GraphiteCheck(SensuPluginCheck):
 
      def min(self, datapoints):
          return min(datapoints)
+
+     def nlastpointanomaly(self, datapoints, last_n_points=7):
+         avg = numpy.average(datapoints[(last_n_points * -1):-1])
+     last = datapoints[-1]
+     return abs(100*last/avg-100)
 
      def last(self, datapoints, number):
          if number == 0:
@@ -202,10 +207,15 @@ class GraphiteCheck(SensuPluginCheck):
                addvalue = self.valid_last(targets.get(target), int(addvalue))
             method_value = method(targets_vars, int(addvalue))
          else:
-            if targets.get(target):
+            #if not targets.get(target) and self.options.nodata:
+            #    method_value = None
+            if len(targets.get(target)):
                 method_value = method(targets.get(target))
             else:
-                method_value = 0
+                if self.options.nodata:
+                    method_value = 0
+                else:
+                    self.critical("No data or Bad metric")
          wrule = self.parse_rules(self.options.warning)
          crule = self.parse_rules(self.options.critical)
          compare_warning = self.apply_rules("warning", wrule['operator'], wrule['value'], method_value)
