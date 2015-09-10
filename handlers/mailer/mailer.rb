@@ -96,6 +96,21 @@ class Mailer < Sensu::Handler
      return "#{admin_gui}/#/client/Sensu/#{@event['client']['name']}?check=#{@event['check']['name']}"
   end
 
+  def parsed_check_name
+      if @event['check']['name']
+         return @event['check']['name'].gsub(/(\_|\.)/,' ')
+      else
+         return @event['check']['name']
+      end
+  end
+
+  def parsed_source_name
+      if @event['check']['source']
+         return @event['check']['source'].gsub(/(\_|\.)/,' ')
+      else
+         return @event['check']['source']
+  end
+
   def status_to_string
     case @event['check']['status']
     when 0
@@ -173,11 +188,35 @@ class Mailer < Sensu::Handler
     s3_public_url = obj.public_url
   end
 
-  def default_template
+  def subject_default_template
+      if @event['check']['source'] and @event['check']['notification']
+         return "<%=status%> | <%=check_name%> | <%=source_name%> :: #{@event['check']['notification']}"
+      elsif @event['check']['source'] and @event['check']['notification'].nil?
+         return "<%=status%> | <%=check_name%> | <%=source_name%>"
+      else
+         return "<%=status%> | <%=check_name%>"
+      end
+  end
+
+  def plain_body_default_template
+      return "Name: <%=check['name']%>\n
+              Uchiwa: <%=alertui%>\n
+              Host: <%=client['name']%>\n
+              Timestamp: <%=time%>\n
+              Address: <%=client['address']%>\n
+              Status: <%=status%>\n
+              Occurrences: <%=occurrences]%>\n
+              Duration: <%=duration}%>\n
+              Playbook: <%=playbook%>\n\n\n
+              Command: <%=nopasscommand%>\n
+              Check_output: <%=nopasscheckout%>"
+  end
+
+  def html_body_default_template
     return "<html><body><table bgcolor=<%=bgcolor%>><tr><td>
-            <h2><%=status%> for <%=check['name']%></h2>
+            <h2><%=status%> for <%=check_name%></h2>
             <p><%=imginclude%></p>
-            <p><b>Name: </b><%=check['name']%><br /> <b>Warning/Critical Level:</b> <%=warning%> / <%=critical%><br /><b>Target: </b> <%=target%><br /> <b>AlertUI: </b><%=alertui%>&nbsp;<br /> <b>Source: </b><%=check['source']%>&nbsp;<br /> <b>Timestamp: </b><%=time%>&nbsp;<br /> <b>Duration: </b><%=duration%>&nbsp;<br /> <b>Check_output: </b><%=nopasscheckout%></p>
+            <p><b>Name: </b><%=check['name']%><br /> <b>Warning/Critical Level:</b> <%=warning%> / <%=critical%><br /><b>Target: </b> <%=target%><br /> <b>AlertUI: </b><%=alertui%><br /> <b>Source: </b><%=check['source']%><br /> <b>Timestamp: </b><%=time%><br /> <b>Duration: </b><%=duration%><br /> <b>Check_output: </b><%=nopasscheckout%></p>
             </td></tr></table></body></html>"
   end
 
@@ -224,6 +263,8 @@ class Mailer < Sensu::Handler
       erbvalues[:client] = @event['client']
     # adding custom values
       erbvalues[:id] = "#{@event['id']}" || nil
+      erbvalues[:check_name] = "#{parsed_check_name}" || nil
+      erbvalues[:source_name] = "#{parsed_source_name}" || nil
       erbvalues[:occurrences] = "#{@event['occurrences']}" || nil
       erbvalues[:action] = "#{@event['action']}" || nil
       erbvalues[:alertui] = "#{uchiwa_alert_url(uchiwa_url_public)}" || nil
@@ -243,33 +284,37 @@ class Mailer < Sensu::Handler
 
     if @event['check']['mail_mode'] == "plain"
         content_type = 'text/plain; charset=UTF-8'
-        body = <<-BODY.gsub(/^\s+/, '')
-                Name: #{@event['check']['name']}
-                Uchiwa: #{admin_alert_url(admin_gui)}
-                Host: #{@event['client']['name']}
-                Timestamp: #{Time.at(@event['check']['issued'])}
-                Address:  #{@event['client']['address']}
-                Status:  #{status_to_string}
-                Occurrences:  #{@event['occurrences']}
-                Duration: #{alert_duration}
-                Command:  #{command}
-                Check_output: #{output}
-                #{playbook}
-             BODY
-    elsif @event['check']['mail_mode'] == "html"
+#        body = <<-BODY.gsub(/^\s+/, '')
+#                Name: #{@event['check']['name']}
+#                Uchiwa: #{admin_alert_url(admin_gui)}
+#                Host: #{@event['client']['name']}
+#                Timestamp: #{Time.at(@event['check']['issued'])}
+#                Address:  #{@event['client']['address']}
+#                Status:  #{status_to_string}
+#                Occurrences:  #{@event['occurrences']}
+#                Duration: #{alert_duration}
+#                Command:  #{command}
+#                Check_output: #{output}
+#                #{playbook}
+#             BODY
         if @event['check']['mail_body']
            body = Erubis::Eruby.new(@event['check']['mail_body']).result(erbvalues)
-           content_type = 'text/html; charset=UTF-8'
         else
-           body = Erubis::Eruby.new("#{default_template}").result(erbvalues)
-           content_type = 'text/html; charset=UTF-8'
+           body = Erubis::Eruby.new("#{plain_body_default_template}").result(erbvalues)
+        end
+    elsif @event['check']['mail_mode'] == "html"
+        content_type = 'text/html; charset=UTF-8'
+        if @event['check']['mail_body']
+           body = Erubis::Eruby.new(@event['check']['mail_body']).result(erbvalues)
+        else
+           body = Erubis::Eruby.new("#{html_body_default_template}").result(erbvalues)
         end
     end
 
-    if @event['check']['notification'].nil?
-      subject = "#{action_to_string} - #{short_name}: #{status_to_string}"
+    if @event['check']['mail_subject']
+       subject = Erubis::Eruby.new("#{@event['check']['mail_subject']}").result(erbvalues)
     else
-      subject = "#{action_to_string} - #{short_name}: #{@event['check']['notification']}"
+       subject = Erubis::Eruby.new("#{subject_default_template}").result(erbvalues)
     end
 
     Mail.defaults do
