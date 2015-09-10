@@ -10,8 +10,9 @@ gem install mail erubis aws-sdk securerandom timeout http
 
 * send text or html mail
 * some advance options based and only on python graphite plugin - https://github.com/szibis/sensu-plugins
-* body templates default or use per check template
+* body and subject templated from default or use per check template override
   * use mail_body in check with your erubis template to everride default template
+  * use mail_mode to choose html or plain mode
   * use event hahshes to template values and extend emails - https://sensuapp.org/docs/0.20/api-events:
       * check - hash from all values from event check section - example: check['name']
       * client - hash from all values from event check section - example: client['address']
@@ -35,9 +36,10 @@ gem install mail erubis aws-sdk securerandom timeout http
       * imginclude - full <a href....> section prepared to include
       * linkfooter - link footer with graphite alert graph image and your ui alert link
       * bgcolor - predefined bgcolours for resolved, warning, critical and no data
-* images in mail generated and stored on S3
+* images in mail contains warning/critical thresholds as horizontal lines
+* images in mail generated from graphite and then stored on S3 with link to graphite on image
 * link to uchiwa specific alert
-* link to graphite-web specific target with warning/critical thresholds
+* link to graphite-web specific target with warning/critical thresholds generated live from graphite
 
 ##### Configuration
 
