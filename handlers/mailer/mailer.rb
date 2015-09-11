@@ -109,6 +109,7 @@ class Mailer < Sensu::Handler
          return @event['check']['source'].gsub(/(\_|\.)/,' ')
       else
          return @event['check']['source']
+      end
   end
 
   def status_to_string
