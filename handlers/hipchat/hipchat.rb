@@ -87,10 +87,10 @@ class HipChatNotif < Sensu::Handler
     end
   end
 
-  def parse_alert_codes(hipchat_mode)
+  def parse_alert_codes(hipchat_mode, gmessage)
         codes = Array[]
         if not @event['check']['status'] == 0
-        @event['check']['output'].split(' ').each do |item|
+        gmessage.split(' ').each do |item|
                  if item =~ /^\(\w\)$/
                     codes << item.delete(')').delete('(')
                  end
@@ -101,10 +101,10 @@ class HipChatNotif < Sensu::Handler
         return codes.join('|')
   end
 
-  def parse_alert_values(hipchat_mode)
+  def parse_alert_values(hipchat_mode, gmessage)
         values = Array[]
         if not @event['check']['status'] == 0
-           @event['check']['output'].split(' ').each do |item|
+           gmessage.split(' ').each do |item|
                if item =~ /^(\d.*)$|^(\-\d.*)$/
                    values << item.delete(',')
                end
@@ -145,16 +145,16 @@ class HipChatNotif < Sensu::Handler
       return playlink
   end
 
-  def minimal_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, playbook)
-      return "<table><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}#{playbook}</td></tr></table>"
+  def minimal_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, gmessage, playbook)
+      return "<table><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode, gmessage)} :: #{parse_alert_values(hipchat_mode, gmessage)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}#{playbook}</td></tr></table>"
   end
 
-  def normal_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, playbook)
-     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}#{playbook}</td></tr></table>"
+  def normal_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, gmessage, playbook)
+     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode, gmessage)} :: #{parse_alert_values(hipchat_mode, gmessage)} :: W:#{get_warning}|C:#{get_critical} :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}#{playbook}</td></tr></table>"
   end
 
-  def full_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, playbook)
-     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode)} :: #{parse_alert_values(hipchat_mode)} :: W:#{get_warning}|C:#{get_critical} :: [o: #{@event['occurrences']}, i: #{@event['check']['interval']}, r: #{@event['check']['refresh']} m: #{get_method}] :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}#{playbook}</td></tr></table>"
+  def full_template(alert_level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, gmessage, playbook)
+     return "<table><tr><td>#{img_include(s3_public_url, graphite_url_public)}</td></tr><tr><td><b>#{alert_level.upcase}</b> #{@event['client']['name']} :: #{@event['check']['name']} :: #{get_target} :: #{parse_alert_codes(hipchat_mode, gmessage)} :: #{parse_alert_values(hipchat_mode, gmessage)} :: W:#{get_warning}|C:#{get_critical} :: [o: #{@event['occurrences']}, i: #{@event['check']['interval']}, r: #{@event['check']['refresh']} m: #{get_method}] :: #{link_footer(uchiwa_url_public, graphite_url_public)} :: #{alert_duration}#{playbook}</td></tr></table>"
   end
 
   def prepare_img_url(graphite_url_public)
@@ -176,11 +176,11 @@ class HipChatNotif < Sensu::Handler
 
   def msg_mode(hipchat_mode, level, graphite_url_public, s3_public_url, uchiwa_url_public, gmessage, playbook)
       if hipchat_mode.eql?('full')
-               msg = "#{full_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, playbook)}"
+               msg = "#{full_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, gmessage, playbook)}"
       elsif hipchat_mode.eql?('normal')
-               msg = "#{normal_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, playbook)}"
+               msg = "#{normal_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public, s3_public_url, gmessage, playbook)}"
       elsif hipchat_mode.eql?('minimal')
-               msg = "#{minimal_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public, playbook)}"
+               msg = "#{minimal_template(level, hipchat_mode, uchiwa_url_public, graphite_url_public, gmessage, playbook)}"
       end
       return msg
   end
@@ -204,23 +204,23 @@ class HipChatNotif < Sensu::Handler
     uchiwa_url_public = settings[json_config]['uchiwa_endpoint_public']
     playbook = @event['check']['playbook']
 
-    message = @event['check']['notification'] || @event['check']['output']
+    #message = @event['check']['notification'] || @event['check']['output']
     gmessage = @event['check']['output']
 
     # If the playbook attribute exists and is a URL, "[<a href='url'>playbook</a>]" will be output.
     # To control the link name, set the playbook value to the HTML output you would like.
-    if @event['check']['playbook']
-      begin
-        uri = URI.parse(@event['check']['playbook'])
-        if %w( http https ).include?(uri.scheme)
-          message << "  [<a href='#{@event['check']['playbook']}'>Playbook</a>]"
-        else
-          message << "  Playbook:  #{@event['check']['playbook']}"
-        end
-      rescue
-        message << "  Playbook:  #{@event['check']['playbook']}"
-      end
-    end
+##    if @event['check']['playbook']
+##      begin
+##        uri = URI.parse(@event['check']['playbook'])
+##        if %w( http https ).include?(uri.scheme)
+##          message << "  [<a href='#{@event['check']['playbook']}'>Playbook</a>]"
+##        else
+##          message << "  Playbook:  #{@event['check']['playbook']}"
+##        end
+##      rescue
+##        message << "  Playbook:  #{@event['check']['playbook']}"
+##      end
+##    end
 
 
        for room in rooms
