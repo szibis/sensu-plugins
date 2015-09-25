@@ -1,6 +1,6 @@
 ### ELB handler to send metrics to any other system
 
-elb-metrics.rb from sensu-plugins with some simpler features - works very good with modified graphite.rb handler from https://github.com/szibis/sensu-plugins/tree/master/handlers/graphite/graphite.rb
+elb-metrics.rb from sensu-plugins with some simpler features:
 
 * You can use this plugin with list of metrics you need. One check for all metrics no need to run many checks on each metric.
 * Statistics from default map with fix for SurgeQueueLength - Max -> Maximum
