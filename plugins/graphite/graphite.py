@@ -79,14 +79,21 @@ class GraphiteCheck(SensuPluginCheck):
 
      def nlastpointanomaly(self, datapoints, last_n_points=7):
          avg = numpy.average(datapoints[(last_n_points * -1):-1])
-     last = datapoints[-1]
-     return abs(100*last/avg-100)
+         last = datapoints[-1]
+         print "datapoints: {}, last: {}, avg: {}".format(datapoints[(last_n_points * -1):-1], last, avg)
+         if not avg:
+             # By returning maxint we ensure that alert will always be rised.
+             return sys.maxint
+         return abs(100*last/avg-100)
 
      def last(self, datapoints, number):
          if number == 0:
             return datapoints[-1]
          else:
             return datapoints[number]
+
+     def notnulllast(self, datapoints):
+         return [ p for p in datapoints if p is not None ][-1]
 
      def sum(self, datapoints):
          return sum(datapoints)
@@ -99,7 +106,7 @@ class GraphiteCheck(SensuPluginCheck):
                         max_tries=3)
   def get_graphite_data(self):
               resource_url = 'http://' + self.options.endpoint + '/render?format=json&target=' + self.options.target + '&from=-' + self.options.interval
-              response = json.loads(urllib2.urlopen(resource_url, timeout = 10).read())
+              response = json.loads(urllib2.urlopen(resource_url, timeout = 20).read())
               return response
 
   def parse_rules(self, ruleopt):
@@ -184,8 +191,12 @@ class GraphiteCheck(SensuPluginCheck):
     for target in targets:
          percentile_match = re.match( r'(percentile)(.*)', self.options.method)
          last_match = re.match( r'(last)(.*)', self.options.method)
-         if percentile_match or last_match:
+         nlastpointanomaly_match = re.match( r'(nlastpointanomaly)(.*)', self.options.method)
+         if percentile_match or last_match or nlastpointanomaly_match:
              method_opts_temp = self.options.method
+             if nlastpointanomaly_match:
+                method_opts = nlastpointanomaly_match.group(1)
+                addvalue = nlastpointanomaly_match.group(2)
              if percentile_match:
                 method_opts = percentile_match.group(1)
                 addvalue = percentile_match.group(2)
@@ -199,9 +210,9 @@ class GraphiteCheck(SensuPluginCheck):
            method = getattr(my_class, method_opts)
          except:
             raise Exception("Method (%s) is not implemented" % method_opts)
-         if percentile_match or last_match:
+         if percentile_match or last_match or nlastpointanomaly_match:
             targets_vars = targets.get(target)
-            if last_match:
+            if last_match or nlastpointanomaly_match:
                if not addvalue:
                   addvalue = 0
                addvalue = self.valid_last(targets.get(target), int(addvalue))
