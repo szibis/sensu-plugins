@@ -78,19 +78,24 @@ class GraphiteCheck(SensuPluginCheck):
          return min(datapoints)
 
      def nlastpointanomaly(self, datapoints, last_n_points=7):
-         avg = numpy.average(datapoints[(last_n_points * -1):-1])
-         last = datapoints[-1]
-         print "datapoints: {}, last: {}, avg: {}".format(datapoints[(last_n_points * -1):-1], last, avg)
-         if not avg:
-             # By returning maxint we ensure that alert will always be rised.
-             return sys.maxint
-         return abs(100*last/avg-100)
+         if len(datapoints) == 0:
+                return None
+         else:
+                avg = numpy.average(datapoints[(last_n_points * -1):-1])
+                last = datapoints[-1]
+                if not avg:
+                     # By returning maxint we ensure that alert will always be rised.
+                     return sys.maxint
+                return abs(100*last/avg-100)
 
      def last(self, datapoints, number):
          if number == 0:
             return datapoints[-1]
          else:
             return datapoints[number]
+
+     def pnotnulllast(self, datapoints):
+         return [ p for p in datapoints if p is not None ][-3]
 
      def notnulllast(self, datapoints):
          return [ p for p in datapoints if p is not None ][-1]
@@ -138,14 +143,14 @@ class GraphiteCheck(SensuPluginCheck):
       return_data = {}
       if response:
          for tar in response:
-             target =  tar['target']
+             target = tar['target']
              for values in tar['datapoints']:
                  if "None" in str(values[0]):
                     pass
                  else:
                     datapoints.append(values[0])
              return_data[target] = datapoints
-             datapoints = []
+             #datapoints = []
       return return_data
 
   def alert_rule(self, compare_warning, compare_critical):
@@ -217,6 +222,8 @@ class GraphiteCheck(SensuPluginCheck):
                   addvalue = 0
                addvalue = self.valid_last(targets.get(target), int(addvalue))
             method_value = method(targets_vars, int(addvalue))
+            if method_value is None:
+               self.critical("No data or Bad metric")
          else:
             #if not targets.get(target) and self.options.nodata:
             #    method_value = None
